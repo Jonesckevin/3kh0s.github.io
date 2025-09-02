@@ -78,6 +78,12 @@ function getRandomGreeting() {
     "Mission failed, we will get them next time",
     "NUKE INCOMING!",
     "I spent too much time making these",
+    "Why does the discord server exist",
+    "I like turtles",
+    "I am not a cat",
+    "I am a dog",
+    "What is love, baby don't hurt me.",
+    "Don't worry, be happy!"
   ];
   var randomIndex = Math.floor(Math.random() * greetings.length);
   return greetings[randomIndex];
