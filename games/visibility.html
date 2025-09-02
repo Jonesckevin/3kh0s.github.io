@@ -31,7 +31,9 @@
     .muted { color:#aaa; font-size:13px; }
     .chip { padding:4px 8px; border-radius:999px; border:1px solid #2a2a2a; }
     .sticky-footer { position:sticky; bottom:0; background:#111; border-top:1px solid #2a2a2a; padding:10px 0; margin-top:16px; }
-    .note { font-size: 12px; color: #bbb; }
+  .note { font-size: 12px; color: #bbb; }
+  #jsonOut { white-space: nowrap; overflow:auto; margin:0; padding:6px 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .btn.sm { padding:4px 8px; font-size:12px; line-height:1.1; }
     input[type="checkbox"]{ margin:0; }
   </style>
 </head>
@@ -39,7 +41,7 @@
   <div class="container">
     <p><a href="/games/index.html">← back to games</a></p>
     <h1>Manage game visibility</h1>
-    <p class="muted">Check to hide a game from the games list. This affects all visitors once published.</p>
+    <p class="muted">Check to hide a game from the games list.</p>
 
     <div class="toolbar">
       <input id="search" class="search" placeholder="Search games…" />
@@ -52,13 +54,14 @@
 
     <div class="sticky-footer">
       <div class="toolbar">
-        <button id="save" class="btn primary">Save (local preview)</button>
-        <span class="muted">Saves to your browser and shows a preview. To make it live for everyone, commit the change shown below.</span>
+        <button id="save" class="btn primary">Save</button>
+        <span class="muted">The save, only affects you. To make server wide changes, save the below JSON.</span>
       </div>
-      <div class="note">
-        To persist for all users, commit the generated list to <code>/config/hidden-games.json</code> in your repo.
+      <div class="note" style="margin-bottom:6px;">One-line JSON to commit to <code>/config/hidden-games.json</code>.</div>
+      <pre id="jsonOut" class="chip">[]</pre>
+      <div style="margin-top:6px;">
+        <button id="copyJson" class="btn sm">Copy</button>
       </div>
-      <pre id="jsonOut" class="chip" style="white-space: pre-wrap; word-break: break-word; margin-top:8px; padding:8px;">[]</pre>
     </div>
   </div>
 
@@ -115,7 +118,8 @@
     function updateCount() {
       const el = document.getElementById('count');
       el.textContent = `${hiddenSet.size} hidden / ${allGames.length} total`;
-      document.getElementById('jsonOut').textContent = JSON.stringify([...hiddenSet].sort(), null, 2);
+      // One-line JSON for compact display
+      document.getElementById('jsonOut').textContent = JSON.stringify([...hiddenSet].sort());
     }
 
     function applySearch() {
@@ -145,6 +149,21 @@
     document.getElementById('save').addEventListener('click', () => {
       localStorage.setItem('hiddenGames', JSON.stringify([...hiddenSet]));
       alert('Saved locally. Commit /config/hidden-games.json with this content to make it live for everyone.');
+    });
+
+  // Copy button (compact)
+  document.getElementById('copyJson').addEventListener('click', async () => {
+      const txt = document.getElementById('jsonOut').textContent;
+      try {
+        await navigator.clipboard.writeText(txt);
+        alert('Copied JSON to clipboard');
+      } catch (_) {
+        // Fallback for older browsers
+        const ta = document.createElement('textarea');
+        ta.value = txt; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        alert('Copied JSON to clipboard');
+      }
     });
 
     (async function init() {
