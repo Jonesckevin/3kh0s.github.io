@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Game Visibility</title>
+  <link rel="stylesheet" href="/storage/css/games.css" />
+  <style>
+    body { background:#121212; color:#eee; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif; }
+    .container { max-width: 1100px; margin: 20px auto; padding: 0 12px; }
+    .toolbar { display:flex; gap:8px; align-items:center; margin: 12px 0 16px; flex-wrap: wrap; }
+    /* Row-based list */
+    .grid { display:flex; flex-direction:column; gap:4px; }
+    .card {
+      background:#1e1e1e;
+      border:1px solid #2a2a2a;
+      border-radius:10px;
+      padding:2px 4px;
+      display:grid;
+      grid-template-columns: 28px 40px 1fr auto;
+      align-items:center;
+      column-gap:8px;
+    }
+    .check-col { width:28px; display:flex; align-items:center; justify-content:center; }
+    .card img { width:160px; height:40px; border-radius:6px; object-fit:cover; }
+    .card h3 { margin:0; font-size:14px; line-height:1.1;text-align:right; }
+    .slug { color:#aaa; font-size:12px; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .search { padding:8px 10px; border-radius:8px; border:1px solid #2a2a2a; background:#161616; color:#eee; }
+    .btn { padding:8px 12px; border-radius:8px; border:1px solid #2a2a2a; background:#181818; color:#eee; cursor:pointer; }
+    .btn.primary { background:#22c55e; border-color:#1ea653; color:#071208; }
+    .muted { color:#aaa; font-size:13px; }
+    .chip { padding:4px 8px; border-radius:999px; border:1px solid #2a2a2a; }
+    .sticky-footer { position:sticky; bottom:0; background:#111; border-top:1px solid #2a2a2a; padding:10px 0; margin-top:16px; }
+    .note { font-size: 12px; color: #bbb; }
+    input[type="checkbox"]{ margin:0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <p><a href="/games/index.html">← back to games</a></p>
+    <h1>Manage game visibility</h1>
+    <p class="muted">Check to hide a game from the games list. This affects all visitors once published.</p>
+
+    <div class="toolbar">
+      <input id="search" class="search" placeholder="Search games…" />
+      <button id="selectAll" class="btn">Select all</button>
+      <button id="clearAll" class="btn">Clear all</button>
+      <span id="count" class="muted"></span>
+    </div>
+
+    <div id="grid" class="grid"></div>
+
+    <div class="sticky-footer">
+      <div class="toolbar">
+        <button id="save" class="btn primary">Save (local preview)</button>
+        <span class="muted">Saves to your browser and shows a preview. To make it live for everyone, commit the change shown below.</span>
+      </div>
+      <div class="note">
+        To persist for all users, commit the generated list to <code>/config/hidden-games.json</code> in your repo.
+      </div>
+      <pre id="jsonOut" class="chip" style="white-space: pre-wrap; word-break: break-word; margin-top:8px; padding:8px;">[]</pre>
+    </div>
+  </div>
+
+  <script>
+    // Load games from existing DOM list page by scraping, or use config fallback.
+    async function loadGames() {
+      // Fallback to scraping games/index.html for hrefs and titles
+      try {
+        const resp = await fetch('/games/index.html', { cache: 'no-store' });
+        const html = await resp.text();
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const anchors = [...doc.querySelectorAll('.button-container > a')];
+          const games = anchors.map(a => {
+            const href = a.getAttribute('href') || '';
+          const slug = href.split('/')[0];
+          const title = (a.querySelector('h2')?.textContent || slug).trim();
+          const bg = a.querySelector('.button')?.style?.backgroundImage || '';
+          const img = bg.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+            return { slug, title, img, href };
+        });
+        // de-dup if any
+        const seen = new Set();
+        return games.filter(g => (seen.has(g.slug) ? false : (seen.add(g.slug), true)));
+      } catch (e) {
+        return [];
+      }
+    }
+
+    let allGames = [];
+    let hiddenSet = new Set();
+
+    function render(list) {
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+      const hidden = hiddenSet;
+      for (const g of list) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+          <div class="check-col">
+            <input type="checkbox" ${hidden.has(g.slug) ? 'checked' : ''} data-slug="${g.slug}" />
+          </div>
+          <img src="${g.img || '/images/thumbnails/default.jpg'}" alt="${g.title}" />
+          <div>
+            <h3>${g.title}</h3>
+          </div>
+          <div class="slug">${g.href || g.slug}</div>
+        `;
+        grid.appendChild(card);
+      }
+      updateCount();
+    }
+
+    function updateCount() {
+      const el = document.getElementById('count');
+      el.textContent = `${hiddenSet.size} hidden / ${allGames.length} total`;
+      document.getElementById('jsonOut').textContent = JSON.stringify([...hiddenSet].sort(), null, 2);
+    }
+
+    function applySearch() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      if (!q) return render(allGames);
+      const filtered = allGames.filter(g => g.title.toLowerCase().includes(q) || g.slug.toLowerCase().includes(q));
+      render(filtered);
+    }
+
+    document.addEventListener('change', (e) => {
+      if (e.target && e.target.matches('input[type="checkbox"][data-slug]')) {
+        const slug = e.target.getAttribute('data-slug');
+        if (e.target.checked) hiddenSet.add(slug); else hiddenSet.delete(slug);
+        updateCount();
+      }
+    });
+
+    document.getElementById('search').addEventListener('input', applySearch);
+    document.getElementById('selectAll').addEventListener('click', () => {
+      for (const g of allGames) hiddenSet.add(g.slug);
+      applySearch();
+    });
+    document.getElementById('clearAll').addEventListener('click', () => {
+      hiddenSet.clear();
+      applySearch();
+    });
+    document.getElementById('save').addEventListener('click', () => {
+      localStorage.setItem('hiddenGames', JSON.stringify([...hiddenSet]));
+      alert('Saved locally. Commit /config/hidden-games.json with this content to make it live for everyone.');
+    });
+
+    (async function init() {
+      allGames = await loadGames();
+      try {
+        const resp = await fetch('/config/hidden-games.json', { cache: 'no-store' });
+        if (resp.ok) hiddenSet = new Set(await resp.json());
+      } catch (_) {}
+      // overlay local preview
+      try {
+        const local = JSON.parse(localStorage.getItem('hiddenGames') || '[]');
+        for (const s of local) hiddenSet.add(s);
+      } catch (_) {}
+      render(allGames);
+    })();
+  </script>
+</body>
+</html>

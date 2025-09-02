@@ -44,6 +44,41 @@
             });
         }
     </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                let hidden = [];
+                try {
+                    const resp = await fetch('/config/hidden-games.json', {cache: 'no-store'});
+                    if (resp.ok) hidden = await resp.json();
+                } catch (_) {}
+                if (!Array.isArray(hidden) || hidden.length === 0) {
+                    hidden = JSON.parse(localStorage.getItem('hiddenGames') || '[]');
+                }
+                const hideSet = new Set(hidden);
+
+                const hideAnchors = (root) => {
+                    root.querySelectorAll('.button-container > a, .pinned-container > a').forEach(a => {
+                        const href = a.getAttribute('href') || '';
+                        const slug = href.split('/')[0];
+                        if (hideSet.has(slug)) a.style.display = 'none';
+                    });
+                };
+
+                hideAnchors(document);
+
+                // Watch for dynamically added items (e.g., pinned)
+                const mo = new MutationObserver((mutations) => {
+                    for (const m of mutations) {
+                        for (const node of m.addedNodes || []) {
+                            if (node.nodeType === 1) hideAnchors(node);
+                        }
+                    }
+                });
+                mo.observe(document.body, { childList: true, subtree: true });
+            } catch (e) {}
+        });
+    </script>
 </head>
 <body>
 
@@ -61,7 +96,7 @@
 </select>
 
 <p class="linkp"><a href="../index.html">homepage</a> • <a href="https://github.com/a456pur/seraph" target="_blank">github</a> • <a href="https://discord.gg/ZyZDmx3zuQ" target="_blank">discord</a> • <a
-    id="openBlankLink">open blank</a></p>
+    id="openBlankLink">open blank</a> • <a href="/games/visibility.html">manage visibility</a></p>
 
 <br>
 <h2 class="pinned-header">starred games</h2>
