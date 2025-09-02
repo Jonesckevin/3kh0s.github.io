@@ -3,13 +3,46 @@ const OFFLINE_URLS = [
     '/offline.html',
 ];
 
-// Block Google Analytics/Tag Manager requests (privacy)
+// Block common analytics/ads trackers (privacy-first)
 const ANALYTICS_HOSTS = new Set([
+    // Google Analytics / Tag Manager
     'www.google-analytics.com',
     'ssl.google-analytics.com',
     'analytics.google.com',
     'www.googletagmanager.com',
     'googletagmanager.com',
+    // DoubleClick / Ad services
+    'stats.g.doubleclick.net',
+    'adservice.google.com',
+    'adservice.google.co.uk',
+    'pagead2.googlesyndication.com',
+    'googleads.g.doubleclick.net',
+    // Microsoft Clarity
+    'www.clarity.ms',
+    'clarity.ms',
+    // Cloudflare beacons
+    'static.cloudflareinsights.com',
+    // Facebook/Meta Pixel
+    'connect.facebook.net',
+    'www.facebook.com',
+    'facebook.com',
+    // Segment
+    'cdn.segment.com',
+    // Mixpanel
+    'api.mixpanel.com',
+    'cdn.mxpnl.com',
+    // Hotjar
+    'static.hotjar.com',
+    'script.hotjar.com',
+    // Plausible
+    'plausible.io',
+    'events.plausible.io',
+    // Umami
+    'us.umami.is',
+    // Microsoft/Bing
+    'bat.bing.com',
+    // LinkedIn
+    'px.ads.linkedin.com',
 ]);
 
 function isAnalyticsRequest(urlString) {
@@ -23,7 +56,7 @@ function isAnalyticsRequest(urlString) {
         ) {
             return true;
         }
-        const p = u.pathname || '';
+    const p = u.pathname || '';
         // GA Universal/GA4/Mobile SDK endpoints
         if (
             (p === '/collect' || p === '/g/collect' || p === '/j/collect' ||
@@ -34,6 +67,14 @@ function isAnalyticsRequest(urlString) {
         }
         // Tag Manager script
         if (p === '/gtm.js' && (h === 'www.googletagmanager.com' || h === 'googletagmanager.com')) {
+            return true;
+        }
+        // DoubleClick/Ads and common ad script paths
+        if (h.endsWith('.doubleclick.net') || h.endsWith('googlesyndication.com') || h.includes('adservice.google')) {
+            return true;
+        }
+        // Clarity and Cloudflare beacons
+        if (h.endsWith('clarity.ms') || h === 'static.cloudflareinsights.com') {
             return true;
         }
     } catch (_) {}
@@ -86,7 +127,7 @@ self.addEventListener('activate', function(event) {
                     }
                 })
             );
-        })
+    }).then(() => self.clients.claim())
     );
 });
 
