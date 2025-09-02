@@ -50,3 +50,14 @@ self.addEventListener('fetch', event => {
         );
     }
 });
+
+// Privacy: block Google Analytics/Tag Manager beacons
+self.addEventListener('fetch', (event) => {
+    try {
+        const u = new URL(event.request.url);
+        const h = u.hostname;
+        if (h.endsWith('google-analytics.com') || h.endsWith('googletagmanager.com')) {
+            event.respondWith(new Response('', { status: 204 }));
+        }
+    } catch (_) {}
+});

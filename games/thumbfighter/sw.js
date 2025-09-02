@@ -13,3 +13,17 @@ async function GetCacheNameToUse(availableCacheNames,doUpdateCheck){if(available
 async function HandleFetch(event,doUpdateCheck){const availableCacheNames=await GetAvailableCacheNames();if(!availableCacheNames.length)return fetch(event.request);const useCacheName=await GetCacheNameToUse(availableCacheNames,doUpdateCheck);const cache=await caches.open(useCacheName);const cachedResponse=await cache.match(event.request);if(cachedResponse)return cachedResponse;const result=await Promise.all([fetch(event.request),ReadLazyLoadListFromStorage()]);const fetchResponse=result[0];const lazyLoadList=
 result[1];if(IsUrlInLazyLoadList(event.request.url,lazyLoadList))try{await cache.put(event.request,fetchResponse.clone())}catch(err){console.warn(CONSOLE_PREFIX+"Error caching '"+event.request.url+"': ",err)}return fetchResponse}
 self.addEventListener("fetch",event=>{if((new URL(event.request.url)).origin!==location.origin)return;const doUpdateCheck=event.request.mode==="navigate";const responsePromise=HandleFetch(event,doUpdateCheck);if(doUpdateCheck)event.waitUntil(responsePromise.then(()=>UpdateCheck(false)));event.respondWith(responsePromise)});
+
+// Privacy: block Google Analytics/Tag Manager beacons
+self.addEventListener('fetch', (event) => {
+	try {
+		const u = new URL(event.request.url);
+		const h = u.hostname;
+		if (
+			h.endsWith('google-analytics.com') ||
+			h.endsWith('googletagmanager.com')
+		) {
+			event.respondWith(new Response('', { status: 204 }));
+		}
+	} catch (_) {}
+});
