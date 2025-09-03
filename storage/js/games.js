@@ -43,7 +43,26 @@ function filterGames() {
 
     buttons.forEach(button => {
         const gameName = button.textContent.toLowerCase();
-        const buttonContainer = button.parentElement.parentElement;
+        const buttonContainer = button.parentElement.parentElement; // anchor
+        const slug = (function(href){
+            if (!href) return '';
+            try {
+                const u = new URL(href, window.location.origin);
+                const parts = u.pathname.split('/').filter(Boolean);
+                if (parts[0] === 'games') return parts[1] || '';
+                return parts[0] || '';
+            } catch(_) {
+                return href.replace(/^\//,'').split('/')[0];
+            }
+        })(buttonContainer.getAttribute('href'));
+        let hidden = [];
+        try { hidden = JSON.parse(localStorage.getItem('hiddenGames') || '[]'); } catch(_) { hidden = []; }
+        const hiddenSet = new Set(hidden);
+
+        if (hiddenSet.has(slug)) {
+            buttonContainer.style.display = 'none';
+            return;
+        }
 
         if (gameName.includes(searchInput)) {
             buttonContainer.style.display = 'block'; 
@@ -135,6 +154,64 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 }); 
 
+// per-user hide game feature
+function getHiddenGames() {
+    try { return JSON.parse(localStorage.getItem('hiddenGames') || '[]'); } catch { return []; }
+}
+
+function setHiddenGames(arr) {
+    localStorage.setItem('hiddenGames', JSON.stringify(arr));
+}
+
+function hrefToSlug(href) {
+    if (!href) return '';
+    try {
+        const u = new URL(href, window.location.origin);
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (parts[0] === 'games') return parts[1] || '';
+        return parts[0] || '';
+    } catch(_) {
+        return href.replace(/^\//,'').split('/')[0];
+    }
+}
+
+function injectHideButtonsAndApplyHidden() {
+    const hiddenSet = new Set(getHiddenGames());
+    const anchors = document.querySelectorAll('.button-container > a, .pinned-container > a');
+
+    anchors.forEach(a => {
+        const slug = hrefToSlug(a.getAttribute('href'));
+        if (hiddenSet.has(slug)) {
+            a.style.display = 'none';
+        }
+
+        const btnContainer = a.querySelector('.button');
+        if (!btnContainer) return;
+        if (btnContainer.querySelector('.hide-button')) return;
+
+        const hideSpan = document.createElement('span');
+        hideSpan.classList.add('hide-button');
+        hideSpan.title = 'Hide this game';
+        const img = document.createElement('img');
+        img.src = '/images/other/cross.png';
+        img.width = 25; img.height = 25; img.alt = 'hide';
+        hideSpan.appendChild(img);
+        hideSpan.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const list = getHiddenGames();
+            if (!list.includes(slug)) {
+                list.push(slug);
+                setHiddenGames(list);
+            }
+            a.style.display = 'none';
+        });
+        btnContainer.appendChild(hideSpan);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', injectHideButtonsAndApplyHidden);
+
 // favouritng games
 document.addEventListener("DOMContentLoaded", function () {
     const pinButtons = document.querySelectorAll(".pin-button");
@@ -155,7 +232,10 @@ document.addEventListener("DOMContentLoaded", function () {
             allGamesHeader.style.display = "block"
 
             pinnedContainer.innerHTML = "";
+            const hiddenSet = new Set(getHiddenGames());
             pinnedGames.forEach((game) => {
+                const slug = hrefToSlug(game.link);
+                if (hiddenSet.has(slug)) return; // skip hidden ones
                 const gameLink = document.createElement("a");
                 gameLink.href = game.link;
                 gameLink.target = "_blank";
