@@ -147,6 +147,7 @@ h1 {
     left: 2px;
     text-decoration: underline;
     z-index: 3;
+    display: none !important; /* hidden: download feature removed */
 }
 
 select {
